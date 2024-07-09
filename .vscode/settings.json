@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "fsbitmap.h": "c",
+        "fslow.h": "c",
+        "stdlib.h": "c"
+    }
+}
