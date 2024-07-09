@@ -2,6 +2,7 @@
     "files.associations": {
         "fsbitmap.h": "c",
         "fslow.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "stdio.h": "c"
     }
 }
