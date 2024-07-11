@@ -29,15 +29,16 @@ int initDir(int minNum, DirEntry* parent){
 		DirEntry* DEP = malloc(bytesToAlloc);
         // get total number of directory
 		int accDe = bytesToAlloc/sizeof(DirEntry);
-		printf("TOTAL DIRS: %d\n", accDe);
+		// printf("TOTAL DIRS: %d\n", accDe);
 		int newLoc = nextFree(numBlocks);
 		if(newLoc ==-1){
 			//handle error (compact data or quit)
 		}
 
-		printf("Blocks found at: %d\n", newLoc);
-		printf("Blocks Needed: %d\n", numBlocks);
-		printf("DE Size: %ld\n", sizeof(DirEntry));
+		// printf("Blocks found at: %d\n", newLoc);
+		// printf("Blocks Needed: %d\n", numBlocks);
+		// printf("DE Size: %ld\n", sizeof(DirEntry));
+
         // update freespace bitmap
 		for(int i = 0; i < numBlocks; i++){
 			setBit(newLoc+i);
@@ -59,7 +60,7 @@ int initDir(int minNum, DirEntry* parent){
 		DEP[0].size = numBlocks;
  		DEP[0].accessTime = curTime;
 		DEP[0].permissions |= DIRECTORY;
-        printf("Value: %d\n",DEP[0].permissions);
+        // printf("Value: %d\n",DEP[0].permissions);
 		strcpy(DEP[0].name,".");
 
 

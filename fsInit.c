@@ -44,22 +44,24 @@ int initFileSystem (uint64_t numberOfBlocks, uint64_t blockSize)
 	printf ("Initializing File System with %ld blocks with a block size of %ld\n",
 	 numberOfBlocks, blockSize);
 	/* TODO: Add any code you need to initialize your file system. */
-	
+	// printf("SIZE OF VCB %d\n", sizeof(VCB));
 	// number that will be checked against from volume
-	int magicNum = -1;
+	int accMagicNum = -1;
 	VCB *VCBP = (VCB*) malloc(blockSize);
 	// get value from volume(SampleVolume) casted to VCB struct at VCB location
 	// 0;
 	LBAread(VCBP,1,0);
 	// retreive the value at the signature
-	int magicNum2 = VCBP->signature;
-	printf("MAGIC NUM1: %d\n",magicNum2);
-	if(magicNum != magicNum2){
-		printf("NOT INITILIZED |\n");
-		VCBP->signature = magicNum;
+	int VBCMagicNum = VCBP->signature;
+	
+	if(accMagicNum != VBCMagicNum){
+		// printf("NOT INITILIZED |\n");
+		VCBP->signature = accMagicNum;
 		// get the number of bytes that are required to represent the free space
 		int freeSpaceBytes = (numberOfBlocks+7)/8;
-
+		VCBP->totalBlocks = numberOfBlocks;
+		VCBP->blockSize = blockSize;
+		// printf("Block Size: %d\n",blockSize);
 		// get the number of blocks that the free space will take up
 		int freeSpaceBlocks = (freeSpaceBytes + (blockSize-1))/blockSize;
 
@@ -81,8 +83,8 @@ int initFileSystem (uint64_t numberOfBlocks, uint64_t blockSize)
 
 
 	}else{
-		printf("already initilized\n");
-		printf("Key: %d\nFreeSpace: %d\n",VCBP->signature,VCBP->freeSpace);
+		// printf("already initilized\n");
+		// printf("Key: %d\nFreeSpace: %d\n",VCBP->locRootDir,VCBP->freeSpace);
 		// restore data to memory from VCB
 		reInitBitMap(blockSize*numberOfBlocks, VCBP->freeSpace);
 	}
