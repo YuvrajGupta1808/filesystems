@@ -27,6 +27,7 @@ int initBitMap(int numBytes, int numBlocks){
     if(freeSpaceMap.map == NULL){
         return -1;
     }
+    //populate in memory struct with helpful values
     freeSpaceMap.fsSize = numBytes;
     freeSpaceMap.numBlocks = numBlocks;
     return 0;
@@ -41,9 +42,14 @@ int getBit(int bitNum){
     return value;
 }
 void setBit(int bitNum){
-    int byteIndex = bitNum / 8; 
-    int bitPosition = bitNum % 8; 
+    // get the bits index + position from bitNum
+    int byteIndex = bitNum / 8;
+    int bitPosition = bitNum % 8;
+    
+    // bassed on position of bit create a mask
     int mask = (1 << bitPosition);
+    
+    // perform bitwise or to set the bit to 1
     freeSpaceMap.map[byteIndex] |= mask;
 }
 
@@ -69,25 +75,23 @@ int clearBit(int bitNum){
 }
 
 int nextFree(int blocksNeeded){
-    int count = 0; 
+    int count = 0;
     int startIndex = -1;
-    printf("Size: %d\n",  freeSpaceMap.fsSize);
     // loop over all blocks in free space map represented by blocks
     for (int i = 0; i < freeSpaceMap.fsSize; i++) {
         int value = getBit(i);
         if (!value) {
             count++;
             if(count == blocksNeeded){
-                printf("Start index: %d\nIndex: %d\n",startIndex,i);
                 return startIndex;
             }
-        }else{  
-            //set start to next block       
+        }else{
+            //set start to next block
             count = 0;
             startIndex = i+1;
         }
     }
-    return -1; 
+    return -1;
 }
 
 void printBitMap(){
@@ -96,7 +100,7 @@ void printBitMap(){
     for (int i = 0; i < 100; i++) {
         int byteIndex = i / 8;
         int bitPosition = i % 8;
-         int mask = (1 << bitPosition);
+        int mask = (1 << bitPosition);
         printf("%d", (freeSpaceMap.map[byteIndex] & mask) != 0);
         if ((i + 1) % 8 == 0) {
             printf(" ");
@@ -104,3 +108,4 @@ void printBitMap(){
     }
     printf("\n");
 }
+
