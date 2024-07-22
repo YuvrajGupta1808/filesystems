@@ -161,3 +161,54 @@ int fs_isDir(char * filename){
     free(pathCpy);
     return retVal;
 }
+
+int fs_delete(char* filename){
+	//allocate memory for storing parsePath info
+	ppinfo* ppi = malloc(sizeof(ppinfo));
+	
+	//allocate memory to make a copy of filename
+	char *pathCpy = malloc(strlen(filename)+1);
+	
+	// Check if the file exists in the parent directory
+	if(ppi -> posInParent == -1){
+		printf("fs_delete: FILE DOESN'T EXIST.\n");
+		free(ppi);
+		free(pathCpy);
+		return -1;
+	}
+	
+	int retVal = parsePath(pathCpy, ppi);
+	
+	//check for errors
+	if(retVal < 0){
+		free(pathCpy);
+        free(ppi);
+        printf("fs_delete: ERROR IN PARSE PATH: %d\n", retVal);
+        return 0;
+	}
+	
+	DirEntry* parentDir = ppi -> parent;
+	int fileIndex = ppi -> posInParent;
+	
+	//Check if the entry to delete is a directory
+	if (entryIsDir(parentDir, fileIndex)){
+		printf("Cannot delete. Entry is a directory.\n");
+		free(ppi);
+		free(pathCpy);
+		return -1;
+	}
+	
+	parentDir[fileIndex].size = 0;
+	parentDir[fileIndex].location = 0;
+	parentDir[fileIndex].modificationTime = time(NULL);
+
+	LBAwrite(parentDir, parentDir->size, parentDir->location);
+	
+	free(ppi);
+	free(pathCpy);
+	
+	return 0; // success
+	
+}
+
+
