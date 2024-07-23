@@ -5,6 +5,7 @@
 #include "fsDir.h"
 #include "fsLow.h"
 #include "fsPath.h"
+#include "fsBitmap.h"
 
 char* strCWD;
 
@@ -163,9 +164,10 @@ int fs_isDir(char * filename){
 }
 
 int fs_delete(char* filename){
+    printf("fs_delete\n");
 	//allocate memory for storing parsePath info
 	ppinfo* ppi = malloc(sizeof(ppinfo));
-	
+
 	if(ppi == NULL){
 		perror("Memory allocation failed");
 		return -1;
@@ -221,17 +223,20 @@ int fs_delete(char* filename){
 	return 0; // success	
 }
 
-
 // helper to check if directory is empty
 int isDirEmpty(DirEntry* dirEntry){
-    return (dirEntry ->location == 0);
+    for(int i = 2; i < dirEntry->size; i++){
+        if(dirEntry[i].location != 0){
+            return 0;
+        }
+    }
+    return 1;
 }
 
-
 int fs_rmdir(const char *pathname){
+    printf("fs_rmdir\n");
     //allocate memory for storing parsePath info
 	ppinfo* ppi = malloc(sizeof(ppinfo));
-
 	if(ppi == NULL){
 		perror("Memory allocation failed");
 		return -1;
@@ -252,12 +257,13 @@ int fs_rmdir(const char *pathname){
 	    printf("Directory doesn't exist\n");
 	    free(ppi);
 	    free(pathCpy);
-	    return 0;    
+	    return -1;    
 	}
 	
 	//check for errors
 	if(retVal < 0){
 		free(pathCpy);
+        freeIfNotNeeded(ppi->parent);
         free(ppi);
         printf("fs_rmdir: ERROR IN PARSE PATH: %d\n", retVal);
         return -1;
@@ -265,30 +271,38 @@ int fs_rmdir(const char *pathname){
 	
 	DirEntry* parentDir = ppi->parent;
 	int dirIndex = ppi -> posInParent;
-
-	//Check if the item to delete is a directory	
-	if(!entryIsDir(parentDir, dirIndex)){
-	    printf("Cannot remove. Entry is not a directory.\n");
-	    free(pathCpy);
-        free(ppi);
-        return -1;
-	}
+    DirEntry* childDE = loadDir(parentDir, dirIndex);
 	
+    if(parentDir[dirIndex].location == getRoot()->location){
+    printf("Cant remove root\n");
+    return -1;
+    }
+
 	//Check if directory is empty -- we cannot delete if directory isn't empty
-	if(!isDirEmpty(&parentDir[dirIndex])){
+	if(!isDirEmpty(childDE)){
 	    printf("cannot remove. Directory isn't empty.\n");
+        freeIfNotNeeded(ppi->parent);
 	    free(ppi);
 	    free(pathCpy);
+        free(childDE);
 	    return -1;
 	}
+
+    free(childDE);
 	
 	// clear the directory entry
+    printf("S: %d L: %d\n",parentDir[dirIndex].size, parentDir[dirIndex].location);
+    for(int i = parentDir[dirIndex].location; i < parentDir[dirIndex].location+parentDir[dirIndex].size; i++){
+        clearBit(i);
+    }
+
 	memset(&parentDir[dirIndex], 0, sizeof(DirEntry));
-	
 	parentDir -> modificationTime = time(NULL); //current time
-	
+
+    writeBits();
 	LBAwrite(parentDir, parentDir -> size, parentDir -> location);
 	
+    freeIfNotNeeded(ppi->parent);
 	free(ppi);
 	free(pathCpy);
 	

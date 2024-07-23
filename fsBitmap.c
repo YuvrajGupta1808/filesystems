@@ -70,7 +70,15 @@ void writeBits(){
 }
 
 int clearBit(int bitNum){
-    // TODO
+    // get the bits index + position from bitNum
+    int byteIndex = bitNum / 8;
+    int bitPosition = bitNum % 8;
+
+    // based on the position of the bit create a mask
+    int mask = ~(1 << bitPosition);
+
+    // perform bitwise 'and' with the mask to set it to 0
+    freeSpaceMap.map[byteIndex] &= mask;
     return 0;
 }
 

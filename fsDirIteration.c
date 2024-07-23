@@ -84,23 +84,23 @@ fdDir * fs_opendir(const char *pathname){
 
 struct fs_diriteminfo *fs_readdir(fdDir *dirp){
     
-    // reached end of directorys size
+    while(dirp->directory[dirp->currentDir].location == 0 && dirp->currentDir != dirp->directory->size){
+        dirp->currentDir+=1;
+    }
+
+        // reached end of directorys size
     if(dirp->currentDir == dirp->directory->size){
         return NULL;
     }
-    // reached end of valid dir
-    if(dirp->directory[dirp->currentDir].location == 0){
-        return NULL;
-    } 
     //use current dir value to fill struct
     DirEntry* cur = &dirp->directory[dirp->currentDir];
     strncpy(fdDirArray[dirp->dirEntryPosition].di->d_name,cur->name,255);
 
     fdDirArray[dirp->dirEntryPosition].di->d_reclen = cur->size*getBlockSize();
     fdDirArray[dirp->dirEntryPosition].di->fileType = cur->permissions;
+    
     // update current dir value
     dirp->currentDir+=1;
-
     return fdDirArray[dirp->dirEntryPosition].di;
 }
 
