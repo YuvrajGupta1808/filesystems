@@ -23,6 +23,10 @@
 #include "fsDir.h"
 #include <stdint.h>
 #include <unistd.h>
+#include "fsPath.h"
+#include "fsBitmap.h"
+#include "mfs.h"
+#include "fsLow.h"
 
 #define MAXFCBS 20
 #define B_CHUNK_SIZE 512
@@ -74,27 +78,50 @@ b_io_fd b_getFCB ()
 b_io_fd b_open (char * filename, int flags)
 	{
 	b_io_fd returnFd;
-	char * abs = absolute_path(filename);
-	DirEntry * dirEntry = lookup_file(abs);
 
     if (!(flags & (O_RDONLY | O_WRONLY | O_RDWR | O_CREAT | O_APPEND | O_TRUNC))) {
         printf("Invalid flags: %d\n", flags);
         return -1;
     }
 
-	if((dirEntry == NULL) && (flags & O_CREAT)){
-		dirEntry = create_file(abs);
-	} else if (dirEntry = NULL){
-		printf("Invalid Open");
-		return -1;
-	}
-		
-    if (startup==0) b_init(); // Initialize if not already done
+    char *pathCpy = strdup(filename);
+    ppinfo ppi;
+    if (parsePath(pathCpy, &ppi) < 0) {
+        printf("Error parsing path: %s\n", filename);
+        free(pathCpy);
+        return -1;
+    }
+    free(pathCpy);
+
+    DirEntry *dirEntry = findNameInDir(ppi.parent, ppi.lastElement) != -1 ? &ppi.parent[ppi.posInParent] : NULL;
+
+    if (!dirEntry && (flags & O_CREAT)) {
+        if ((ppi.posInParent = findUnusedDE(ppi.parent)) == -1) {
+            printf("No free directory entry available.\n");
+            return -1;
+        }
+
+        dirEntry = &ppi.parent[ppi.posInParent];
+        strcpy(dirEntry->name, ppi.lastElement);
+        dirEntry->size = 0;
+        dirEntry->location = nextFree(1); // Find free block
+        setBit(dirEntry->location);       // Mark block as used
+        dirEntry->creationTime = time(NULL);
+        dirEntry->modificationTime = dirEntry->creationTime;
+        dirEntry->accessTime = dirEntry->creationTime;
+        dirEntry->permissions = flags;
+
+        writeBits(); // Update the free space bitmap
+        fs_setcwd(ppi.parent->name); // Update parent directory
+    } else if (!dirEntry) {
+        printf("File not found: %s\n", filename);
+        return -1;
+    }
 
     b_io_fd fd = b_getFCB();
     if (fd < 0) return -1; // No available FCB
 
-    fcbArray[fd].path = abs;
+    fcbArray[fd].path = strdup(filename);
     fcbArray[fd].offset = (flags & O_APPEND) ? dirEntry->size : 0;
     fcbArray[fd].dirEntry = dirEntry;
     fcbArray[fd].block_index = -1;
@@ -106,6 +133,7 @@ b_io_fd b_open (char * filename, int flags)
     if (flags & O_TRUNC) {
         fcbArray[fd].dirEntry->size = 0;
     }
+
 	
 	return (returnFd);						// all set
 	}
@@ -172,7 +200,12 @@ int b_write (b_io_fd fd, char * buffer, int count)
 
     // Calculate the number of blocks required
     uint64_t requiredBlocks = (newSize + B_CHUNK_SIZE - 1) / B_CHUNK_SIZE;
-    int64_t *positions = get_blocks_for_file(fcb->dirEntry->location, fcb->dirEntry->size / B_CHUNK_SIZE, requiredBlocks);
+
+    int64_t *positions = (int64_t *)malloc(requiredBlocks * sizeof(int64_t));
+    if (positions == NULL) {
+        printf("Memory allocation failed for file blocks.\n");
+        return -1;
+    }
 
     // Update directory entry location and size
     fcb->dirEntry->location = positions[0];
@@ -334,7 +367,15 @@ int b_close (b_io_fd fd)
 	}
 
 	fcbArray[fd].dirEntry->modificationTime = time(NULL);
-    update_directory_entry(fcbArray[fd].path, fcbArray[fd].dirEntry);
+    // Update the directory entry in its parent directory
+    char *pathCpy = strdup(fcbArray[fd].path);
+    ppinfo ppi;
+    if (parsePath(pathCpy, &ppi) >= 0)
+    {
+        // Update the parent directory entry
+        ppi.parent[ppi.posInParent] = *fcbArray[fd].dirEntry;
+        freeIfNotNeeded(ppi.parent);
+    }
     free(fcbArray[fd].path);
     free(fcbArray[fd].buf);
 
