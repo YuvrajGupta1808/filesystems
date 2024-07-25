@@ -35,6 +35,7 @@ typedef struct b_fcb
 	{
 	int flag;
 	char * path;
+    int loc;
 	u_int64_t offset;
 	char * buf;		//holds the open file buffer
 	int64_t block_index;
@@ -77,65 +78,96 @@ b_io_fd b_getFCB ()
 // O_RDONLY, O_WRONLY, or O_RDWR
 b_io_fd b_open (char * filename, int flags)
 	{
+        
+    printf("b_open\n");
 	b_io_fd returnFd;
+    ppinfo* ppi = malloc(sizeof(ppinfo));
+	if(ppi == NULL){
+		perror("Memory allocation failed");
+		return -1;
+	}
 
-    if (!(flags & (O_RDONLY | O_WRONLY | O_RDWR | O_CREAT | O_APPEND | O_TRUNC))) {
-        printf("Invalid flags: %d\n", flags);
-        return -1;
-    }
-
-    char *pathCpy = strdup(filename);
-    ppinfo ppi;
-    if (parsePath(pathCpy, &ppi) < 0) {
+        char* pathCpy = malloc(strlen(filename)+1);
+        if(pathCpy == NULL){
+            perror("Memory allocation failed");
+            free(ppi);
+            return -1;
+        }
+	
+	    strcpy(pathCpy, filename);
+        if (parsePath(pathCpy, ppi) < 0) {
         printf("Error parsing path: %s\n", filename);
+        free(ppi);
         free(pathCpy);
         return -1;
     }
-    free(pathCpy);
 
-    DirEntry *dirEntry = findNameInDir(ppi.parent, ppi.lastElement) != -1 ? &ppi.parent[ppi.posInParent] : NULL;
-
-    if (!dirEntry && (flags & O_CREAT)) {
-        if ((ppi.posInParent = findUnusedDE(ppi.parent)) == -1) {
+    int DEloc = findNameInDir(ppi->parent, ppi->lastElement);
+    DirEntry* dirEntry = loadDir(ppi->parent, 0);
+    int at = ppi->posInParent;
+    // need to create
+    if (DEloc == -1 && (flags & O_CREAT)) {
+           
+        at = findUnusedDE(dirEntry);
+          if ((at == -1)) {
+            free(ppi);
+            free(pathCpy);
             printf("No free directory entry available.\n");
             return -1;
         }
 
-        dirEntry = &ppi.parent[ppi.posInParent];
-        strcpy(dirEntry->name, ppi.lastElement);
-        dirEntry->size = 0;
-        dirEntry->location = nextFree(1); // Find free block
-        setBit(dirEntry->location);       // Mark block as used
-        dirEntry->creationTime = time(NULL);
-        dirEntry->modificationTime = dirEntry->creationTime;
-        dirEntry->accessTime = dirEntry->creationTime;
-        dirEntry->permissions = flags;
+        int newLoc = nextFree(100); // Find free block
+        strncpy(dirEntry[at].name, ppi->lastElement, 254);
 
+        dirEntry[at].creationTime = time(NULL);
+        dirEntry[at].modificationTime = dirEntry->creationTime;
+        dirEntry[at].accessTime = dirEntry->creationTime;
+        dirEntry[at].permissions |= FILE | flags;
+        dirEntry[at].size = 200;
+        dirEntry[at].gg = 0;
+        dirEntry[at].location = newLoc;
+
+
+        for(int i = 0; i < 100; i++){
+        setBit(newLoc+i);       // Mark block as used
+        }
         writeBits(); // Update the free space bitmap
-        fs_setcwd(ppi.parent->name); // Update parent directory
-    } else if (!dirEntry) {
-        printf("File not found: %s\n", filename);
+        LBAwrite(dirEntry, dirEntry->size, dirEntry->location);
+    } else if (DEloc == -1) {
+        free(ppi);
+        free(pathCpy);
         return -1;
     }
 
-    b_io_fd fd = b_getFCB();
-    if (fd < 0) return -1; // No available FCB
+    if (startup == 0) b_init();
 
+    b_io_fd fd = b_getFCB();
+    if (fd < 0) {
+        free(ppi);
+        free(pathCpy);
+        return -1;
+        }; // No available FCB
+    
+// if(entryIsDir(dirEntry)){
+//     free(ppi);
+//         free(pathCpy);
+//         return -1;
+// }
     fcbArray[fd].path = strdup(filename);
     fcbArray[fd].offset = (flags & O_APPEND) ? dirEntry->size : 0;
-    fcbArray[fd].dirEntry = dirEntry;
-    fcbArray[fd].block_index = -1;
-    fcbArray[fd].buf = malloc(B_CHUNK_SIZE);
+    fcbArray[fd].loc = at;
+    fcbArray[fd].dirEntry = DirToMem(dirEntry->location);
+    fcbArray[fd].block_index = dirEntry[at].location;
+    fcbArray[fd].buf = (void*)-1;
     fcbArray[fd].index = 0;
     fcbArray[fd].buflen = 0;
     fcbArray[fd].flag = flags;
 
-    if (flags & O_TRUNC) {
-        fcbArray[fd].dirEntry->size = 0;
-    }
+    free(ppi);
+	free(pathCpy);
 
-	
-	return (returnFd);						// all set
+
+	return (fd);						// all set
 	}
 
 
@@ -178,6 +210,7 @@ int b_seek (b_io_fd fd, off_t offset, int whence)
 // Interface to write function	
 int b_write (b_io_fd fd, char * buffer, int count)
 	{
+
 	if (startup == 0) b_init();  //Initialize our system
 
 	// check that fd is between 0 and (MAXFCBS-1)
@@ -185,68 +218,80 @@ int b_write (b_io_fd fd, char * buffer, int count)
 		{
 		return (-1); 					//invalid file descriptor
 		}
+
+
     // Locate the FCB
     b_fcb *fcb = &fcbArray[fd];
-
+    
     // Check if the file is read-only
     if (fcb->flag & O_RDONLY) {
         printf("b_write error: File is read-only.\n");
         return -1;
     }
 
+    if(fcb->dirEntry[fcb->loc].gg + count > fcb->dirEntry[fcb->loc].size * B_CHUNK_SIZE ){
+        //TODO 
+        //COPY FILE TO NEW LOCATION WITH MORE SiZE
+        printf("FILE \"%s\" @ %d | TOO BIG| size is: %d > %d\n",__FILE__, __LINE__,fcb->dirEntry[fcb->loc].gg, fcb->dirEntry[fcb->loc].size * B_CHUNK_SIZE);
+    }
+
+    if (fcb->buf == (char *)-1) {
+        fcb->buf = malloc(B_CHUNK_SIZE);
+        fcb->block_index = fcb->dirEntry[fcb->loc].location;
+        LBAread(fcb->buf, 1, fcb->block_index);
+        fcb->buflen = 0;
+        fcb->dirEntry[fcb->loc].gg = 0;
+    }
+
     // Update access time
     fcb->dirEntry->accessTime = time(NULL);
-    uint64_t newSize = fcb->offset + count;
-
-    // Calculate the number of blocks required
-    uint64_t requiredBlocks = (newSize + B_CHUNK_SIZE - 1) / B_CHUNK_SIZE;
-
-    int64_t *positions = (int64_t *)malloc(requiredBlocks * sizeof(int64_t));
-    if (positions == NULL) {
-        printf("Memory allocation failed for file blocks.\n");
-        return -1;
-    }
 
     // Update directory entry location and size
-    fcb->dirEntry->location = positions[0];
-    fcb->dirEntry->size = newSize;
+    int remaining = count;
+    int p1Remainder = B_CHUNK_SIZE - fcb->buflen;
+    int added = 0;
+    // int offset = fcb->offset;
+    int part1 = 0;
+    int part2 = 0;
+    int part3 = 0;
 
-    uint64_t remaining = count;
-    char *data = buffer;
+    
+    part1 = p1Remainder < remaining? p1Remainder : remaining;
+    memcpy(fcb->buf+fcb->buflen, buffer, part1);
+    added+=part1;
+    remaining -= part1;
+    fcb->buflen += part1;
 
-    while (remaining > 0) {
-        uint64_t toCopy = remaining;
-        uint64_t spaceLeft = B_CHUNK_SIZE - fcb->index;
-
-        if (toCopy > spaceLeft) {
-            toCopy = spaceLeft;
-        }
-
-        int64_t blockPos = positions[fcb->offset / B_CHUNK_SIZE];
-
-        if (fcb->block_index != blockPos) {
-            LBAread(fcb->buf, 1, blockPos);
-            fcb->block_index = blockPos;
-        }
-
-        memcpy(&fcb->buf[fcb->index], &data[count - remaining], toCopy);
-        LBAwrite(fcb->buf, 1, blockPos);
-
-        fcb->index += toCopy;
-        remaining -= toCopy;
-
-        if (fcb->index >= B_CHUNK_SIZE) {
-            fcb->index = 0;
-            fcb->block_index = -1;
-        }
-
-        fcb->offset += toCopy;
-        if (fcb->offset > fcb->dirEntry->size) {
-            fcb->dirEntry->size = fcb->offset;
-        }
+    if(remaining / B_CHUNK_SIZE < 0){
+        LBAwrite(fcb->buf, 1, fcb->block_index);
+        fcb->block_index += 1;
+        int canAdd = remaining / B_CHUNK_SIZE;
+        LBAwrite(buffer+added, canAdd, fcb->block_index);
+        fcb->block_index += canAdd;
+        part2 = canAdd * B_CHUNK_SIZE;
+        remaining -= canAdd * B_CHUNK_SIZE;
+        fcb->buflen = 0;
+        added += part2;
     }
 
-    return count; // Return the number of bytes written
+     if(remaining > 0){
+        part3 = remaining;
+        LBAwrite(fcb->buf, 1, fcb->block_index);
+        fcb->block_index += 1;
+        LBAread(fcb->buf, 1, fcb->block_index);
+        memcpy(fcb->buf, buffer+added, part3);
+        fcb->buflen = part3;
+        added+=part3;
+        remaining = 0;
+    }
+    LBAwrite(fcb->buf, 1, fcb->block_index);
+    
+
+    fcb->dirEntry[fcb->loc].gg += added;
+    // printf("File Size is: %d @ %d\n", fcb->dirEntry->size, fcb->dirEntry->location);
+
+    LBAwrite(fcb->dirEntry, fcb->dirEntry->size, fcb->dirEntry->location);
+    return added; // return the number of bytes written
 	}
 
 
@@ -272,29 +317,38 @@ int b_write (b_io_fd fd, char * buffer, int count)
 //  +-------------+------------------------------------------------+--------+
 int b_read (b_io_fd fd, char * buffer, int count)
 	{
-
+    
 	if (startup == 0) b_init();  //Initialize our system
+    
 
 	// check that fd is between 0 and (MAXFCBS-1)
 	if ((fd < 0) || (fd >= MAXFCBS))
 		{
 		return (-1); 					//invalid file descriptor
 		}
-    b_fcb *fcb = &fcbArray[fd];
 
-    // Check if file is write-only
-    if (fcb->flag & O_WRONLY) {
-        printf("b_read error: File is write-only.\n");
-        return -1;
+    b_fcb *fcb = &fcbArray[fd];
+    if (fcb->buf == (char *)-1) {
+        fcb->buf = malloc(B_CHUNK_SIZE);
+        fcb->block_index = fcb->dirEntry[fcb->loc].location;
+        LBAread(fcb->buf, 1, fcb->block_index);
+        fcb->block_index++;
+        fcb->buflen = 0;
+        fcb->offset = 0;
     }
 
+    // DEF: offset = current pos in file
+    int fileSize = fcb->dirEntry[fcb->loc].gg;
+
+    // printf("FILE SIZE: %d\n",fileSize);
+
     // Prevent reading past the end of the file
-    if (fcb->offset + count > fcb->dirEntry->size) {
-        count = fcb->dirEntry->size - fcb->offset;
+    if (fcb->offset + count > fileSize) {
+       count = fileSize - fcb->offset;
     }
 
     // Check if at end of file
-    if (fcb->offset >= fcb->dirEntry->size) {
+    if (fcb->offset >= fileSize) {
         return 0; // EOF
     }
 
@@ -302,50 +356,44 @@ int b_read (b_io_fd fd, char * buffer, int count)
     int bufferWriteIndex = 0;
     int part1, part2, part3;
 
-    while (needToBeRead > 0) {
+    part1 = B_CHUNK_SIZE - fcb->buflen;
+    part1 = (needToBeRead < part1) ? needToBeRead : part1;
+    needToBeRead -= part1;
+    part2 = needToBeRead - (needToBeRead % B_CHUNK_SIZE);
+    needToBeRead -= part2;      
+    part3 = needToBeRead;
+        
         // Part 1: Read from existing buffer
-        part1 = B_CHUNK_SIZE - fcb->index;
-        part1 = (needToBeRead < part1) ? needToBeRead : part1;
-
         if (part1 > 0) {
-            memcpy(&buffer[bufferWriteIndex], &fcb->buf[fcb->index], part1);
-            fcb->index += part1;
+            memcpy(buffer+bufferWriteIndex, fcb->buf+fcb->buflen, part1);
+            fcb->buflen += part1;
             fcb->offset += part1;
             bufferWriteIndex += part1;
-            needToBeRead -= part1;
+            count -= part1;
         }
 
         // Part 2: Read full blocks directly to buffer if needed
-        part2 = needToBeRead - (needToBeRead % B_CHUNK_SIZE);
-
         if (part2 > 0) {
-            int blockToRead = fcb->dirEntry->location + (fcb->offset / B_CHUNK_SIZE);
             int blocks = part2 / B_CHUNK_SIZE;
-            LBAread(&buffer[bufferWriteIndex], blocks, blockToRead);
-            fcb->offset += part2;
+            LBAread(buffer+bufferWriteIndex, blocks, fcb->block_index+1);
+            fcb->block_index += blocks;
             bufferWriteIndex += part2;
-            needToBeRead -= part2;
+            fcb->offset += part2;
+            count -= part2;
         }
 
         // Part 3: Read remaining bytes into buffer and copy to user buffer
-        part3 = needToBeRead;
 
         if (part3 > 0) {
-            int blockToRead = fcb->dirEntry->location + (fcb->offset / B_CHUNK_SIZE);
-
-            if (fcb->block_index != blockToRead || fcb->index >= B_CHUNK_SIZE) {
-                LBAread(fcb->buf, 1, blockToRead);
-                fcb->block_index = blockToRead;
-                fcb->index = 0;
-            }
-
-            memcpy(&buffer[bufferWriteIndex], &fcb->buf[fcb->index], part3);
-            fcb->index += part3;
+            LBAread(fcb->buf, 1, fcb->block_index);
+            memcpy(buffer+bufferWriteIndex, fcb->buf, part3);
+            fcb->block_index++;
+            fcb->buflen = part3;
             fcb->offset += part3;
             bufferWriteIndex += part3;
-            needToBeRead -= part3;
+            count -= part3;
         }
-    }
+    
 
     // Update access time
     fcb->dirEntry->accessTime = time(NULL);
@@ -357,28 +405,20 @@ int b_read (b_io_fd fd, char * buffer, int count)
 // Interface to Close the file	
 int b_close (b_io_fd fd)
 	{
+
 		// check that fd is between 0 and (MAXFCBS-1)
 	if ((fd < 0) || (fd >= MAXFCBS))
 		{
 		return (-1); 					//invalid file descriptor
 	}
-	if (fcbArray[fd].dirEntry == NULL){
-		return 0;
-	}
-
+    
 	fcbArray[fd].dirEntry->modificationTime = time(NULL);
     // Update the directory entry in its parent directory
-    char *pathCpy = strdup(fcbArray[fd].path);
-    ppinfo ppi;
-    if (parsePath(pathCpy, &ppi) >= 0)
-    {
-        // Update the parent directory entry
-        ppi.parent[ppi.posInParent] = *fcbArray[fd].dirEntry;
-        freeIfNotNeeded(ppi.parent);
+    if(fcbArray[fd].buf != (char*)-1){
+    free(fcbArray[fd].buf);
     }
     free(fcbArray[fd].path);
-    free(fcbArray[fd].buf);
-
+    free(fcbArray[fd].dirEntry);
     // Clear the FCB
     fcbArray[fd].path = NULL;
     fcbArray[fd].buf = NULL;
@@ -388,5 +428,5 @@ int b_close (b_io_fd fd)
     fcbArray[fd].block_index = -1;
     fcbArray[fd].index = 0;
     fcbArray[fd].buflen = 0;
-
+	return 0;
 	}

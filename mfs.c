@@ -167,21 +167,21 @@ int fs_delete(char* filename){
     printf("fs_delete\n");
 	//allocate memory for storing parsePath info
 	ppinfo* ppi = malloc(sizeof(ppinfo));
-
 	if(ppi == NULL){
 		perror("Memory allocation failed");
 		return -1;
 	}
-	
 	//allocate memory to make a copy of filename
 	char *pathCpy = malloc(strlen(filename)+1);
-	
 	if(pathCpy == NULL){
 	    perror("Memory allocation failed");
 	    free(ppi);
 		return -1;
 	}
 	
+	strcpy(pathCpy, filename);
+	int retVal = parsePath(pathCpy, ppi);
+
 	// Check if the file exists in the parent directory
 	if(ppi -> posInParent == -1){
 		printf("fs_delete: FILE DOESN'T EXIST.\n");
@@ -189,9 +189,7 @@ int fs_delete(char* filename){
 		free(pathCpy);
 		return -1;
 	}
-	
-	int retVal = parsePath(pathCpy, ppi);
-	
+
 	//check for errors
 	if(retVal < 0){
 		free(pathCpy);
@@ -202,19 +200,19 @@ int fs_delete(char* filename){
 	
 	DirEntry* parentDir = ppi -> parent;
 	int fileIndex = ppi -> posInParent;
-	
-	//Check if the entry to delete is a directory
-	if (entryIsDir(parentDir, fileIndex)){
-		printf("Cannot delete. Entry is a directory.\n");
-		free(ppi);
-		free(pathCpy);
-		return -1;
-	}
-	
-	parentDir[fileIndex].size = 0;
-	parentDir[fileIndex].location = 0;
-	parentDir[fileIndex].modificationTime = time(NULL); //current time
 
+
+	parentDir[fileIndex].modificationTime = time(NULL); //current time
+    printf("Bits to be clear: loc: %d, size: %d, indes: %d \n",parentDir[fileIndex].location, parentDir[fileIndex].size,fileIndex);
+    for(int i = parentDir[fileIndex].location; i < parentDir[fileIndex].location+parentDir[fileIndex].size; i++){
+        clearBit(i);
+    }
+    writeBits();
+    parentDir[fileIndex].size = 0;
+	parentDir[fileIndex].location = 0;
+    printf("Pre fs_delete free\n");
+    parentDir[fileIndex].name[0] = '\0';
+    printf("Post fs_delete free\n");
 	LBAwrite(parentDir, parentDir->size, parentDir->location);
 	
 	free(ppi);
@@ -222,7 +220,6 @@ int fs_delete(char* filename){
 	
 	return 0; // success	
 }
-
 // helper to check if directory is empty
 int isDirEmpty(DirEntry* dirEntry){
     for(int i = 2; i < dirEntry->size; i++){

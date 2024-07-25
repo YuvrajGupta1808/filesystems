@@ -17,18 +17,19 @@
 #define _FSDIR_H
 
 #define MAX_LEN_FOR_NAME 255
-#define DIRECTORY 0x80000000
+#define DIRECTORY        0x80000000
+#define FILE             0x40000000
 
 typedef struct DirEntry{
  time_t creationTime;
  time_t modificationTime;
  time_t accessTime;
+ int gg;
  int location;
  int size;
  int permissions;
  char name[MAX_LEN_FOR_NAME];
 } DirEntry;
-
 // initDir initilizes a directory, updates freespace, sets '.' and '..', all 
 // others are empty
 int initDir(int minNum, DirEntry* parent, int blockSize);
