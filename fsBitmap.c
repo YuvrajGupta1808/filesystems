@@ -59,7 +59,7 @@ int reInitBitMap(int numBytes, int numBlocks){
     if(good == -1){
         return -1;
     }
-    // save freespace map from memory to volume
+    // // save freespace map from memory to volume
     LBAread(freeSpaceMap.map,freeSpaceMap.numBlocks,1);
     return 0;
 }
@@ -115,5 +115,9 @@ void printBitMap(){
         }
     }
     printf("\n");
+}
+
+void freeBitMap(){
+    free(freeSpaceMap.map);
 }
 

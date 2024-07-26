@@ -6,13 +6,16 @@
 
 #define MAXSTACKSIZE 50
 char* stack[MAXSTACKSIZE];
-char* strPath;
+char* strPath = NULL;
 int size = 0;
 
 // adds new value to top of stack
 void push(char* value){
     // allocate memory for str
     stack[size] = malloc(strlen(value) + 1); 
+    if (stack[size] == NULL) {
+        return;
+    }
     // fill stack with value
     strcpy(stack[size], value);
     // increment size
@@ -33,19 +36,24 @@ char* toString(){
     int offset = 0;
     // itterate over stack and its values to get amount of memory needed
     for(int i = 0; i < size; i++){
-        strLen += strlen(stack[i]+1);
+        strLen += strlen(stack[i])+1;
     }
     // allocate the memory
-    strPath = malloc(strLen);
+    char *newStrPath = realloc(strPath, strLen + 2);    
+    if (newStrPath == NULL) {
+    return NULL;
+    }
+
+    strPath = newStrPath;
+    strPath[0] = '\0';
 
 // iterate over size concatinating string
     for(int i = 0; i < size; i++){
-        strcpy(strPath+offset, "/");
-        strcpy(strPath+offset+1, stack[i]);
-        offset += strlen(stack[i])+1;
+        strcat(strPath, "/");
+        strcat(strPath, stack[i]);
     }
 // add final '/'
-    strcpy(strPath+offset, "/");
+    strcat(strPath, "/");
     return strPath;
 }
 
@@ -84,17 +92,21 @@ void pathCleaner(char* path){
 
 int parsePath(char* path, ppinfo* ppi){  
   // if path is not valid return error
+//   printf("z>Path: %s\n", path);
     if(path == NULL){
         return -1;
     }
     DirEntry* start;
     if(path[0] == '/'){
         start = getRoot();
+        //   printf("ROOT:%d \n", start->location);
+
     }else{
         start = getCWD();
     }
     DirEntry* parent = start;
     start = NULL;
+
     char* token1 = strtok(path,"/");
     // if path is just /
     if(token1 == NULL){
@@ -147,4 +159,15 @@ void setCWDStr(char *pathCpy){
 
 char* getCWDStr(){
     return toString();
+}
+
+void freeSTRCWD(){
+
+    for(int i = 0; i < size;i++){
+        free(stack[i]);
+    }
+
+    if(strPath != NULL){
+    free(strPath);
+    }
 }

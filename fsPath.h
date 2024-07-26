@@ -17,4 +17,6 @@ int parsePath(char* path, ppinfo* ppi);
 // getCWDStr returns the string value of the stack
 char* getCWDStr();
 
+void freeSTRCWD();
+
 #endif

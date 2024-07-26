@@ -79,17 +79,14 @@ b_io_fd b_getFCB ()
 b_io_fd b_open (char * filename, int flags)
 	{
         
-    printf("b_open\n");
 	b_io_fd returnFd;
     ppinfo* ppi = malloc(sizeof(ppinfo));
 	if(ppi == NULL){
-		perror("Memory allocation failed");
 		return -1;
 	}
 
         char* pathCpy = malloc(strlen(filename)+1);
         if(pathCpy == NULL){
-            perror("Memory allocation failed");
             free(ppi);
             return -1;
         }
@@ -102,14 +99,18 @@ b_io_fd b_open (char * filename, int flags)
         return -1;
     }
 
-    int DEloc = findNameInDir(ppi->parent, ppi->lastElement);
-    DirEntry* dirEntry = loadDir(ppi->parent, 0);
+
+
+    int DEloc = ppi->posInParent;
+    printf("DEloc: %d\n", DEloc);
+    DirEntry* dirEntry = ppi->parent;
     int at = ppi->posInParent;
     // need to create
     if (DEloc == -1 && (flags & O_CREAT)) {
-           
+        printf("CREATE A FILE\n");
         at = findUnusedDE(dirEntry);
           if ((at == -1)) {
+            freeIfNotNeeded(ppi->parent);
             free(ppi);
             free(pathCpy);
             printf("No free directory entry available.\n");
@@ -122,18 +123,20 @@ b_io_fd b_open (char * filename, int flags)
         dirEntry[at].creationTime = time(NULL);
         dirEntry[at].modificationTime = dirEntry->creationTime;
         dirEntry[at].accessTime = dirEntry->creationTime;
-        dirEntry[at].permissions |= FILE | flags;
+        dirEntry[at].permissions |= FILE ;
         dirEntry[at].size = 200;
         dirEntry[at].gg = 0;
         dirEntry[at].location = newLoc;
-
 
         for(int i = 0; i < 100; i++){
         setBit(newLoc+i);       // Mark block as used
         }
         writeBits(); // Update the free space bitmap
+
+
         LBAwrite(dirEntry, dirEntry->size, dirEntry->location);
     } else if (DEloc == -1) {
+        freeIfNotNeeded(ppi->parent);
         free(ppi);
         free(pathCpy);
         return -1;
@@ -148,24 +151,26 @@ b_io_fd b_open (char * filename, int flags)
         return -1;
         }; // No available FCB
     
-// if(entryIsDir(dirEntry)){
-//     free(ppi);
-//         free(pathCpy);
-//         return -1;
-// }
+if(entryIsDir(dirEntry,ppi->posInParent)){
+    freeIfNotNeeded(ppi->parent);
+    printf("Entry is already a directory\n");
+    free(ppi);
+    free(pathCpy);
+    return -1;
+}
     fcbArray[fd].path = strdup(filename);
-    fcbArray[fd].offset = (flags & O_APPEND) ? dirEntry->size : 0;
+    fcbArray[fd].offset = dirEntry->size;
     fcbArray[fd].loc = at;
-    fcbArray[fd].dirEntry = DirToMem(dirEntry->location);
+    fcbArray[fd].dirEntry = dirEntry;
     fcbArray[fd].block_index = dirEntry[at].location;
     fcbArray[fd].buf = (void*)-1;
     fcbArray[fd].index = 0;
     fcbArray[fd].buflen = 0;
     fcbArray[fd].flag = flags;
 
+// printf("%d| \"%s\": size: %d\n",fd, ppi->lastElement,fcbArray[fd].dirEntry[at].gg);
     free(ppi);
 	free(pathCpy);
-
 
 	return (fd);						// all set
 	}
@@ -288,7 +293,8 @@ int b_write (b_io_fd fd, char * buffer, int count)
     
 
     fcb->dirEntry[fcb->loc].gg += added;
-    // printf("File Size is: %d @ %d\n", fcb->dirEntry->size, fcb->dirEntry->location);
+    // printf("%d |File: size: %d added: %d | to add: %d\n",fd, fcb->dirEntry[fcb->loc].gg, added,count);
+    // printf("File: size: %d | location : %d\n", fcb->dirEntry->size, fcb->dirEntry->location);
 
     LBAwrite(fcb->dirEntry, fcb->dirEntry->size, fcb->dirEntry->location);
     return added; // return the number of bytes written
@@ -319,7 +325,6 @@ int b_read (b_io_fd fd, char * buffer, int count)
 	{
     
 	if (startup == 0) b_init();  //Initialize our system
-    
 
 	// check that fd is between 0 and (MAXFCBS-1)
 	if ((fd < 0) || (fd >= MAXFCBS))
@@ -339,7 +344,6 @@ int b_read (b_io_fd fd, char * buffer, int count)
 
     // DEF: offset = current pos in file
     int fileSize = fcb->dirEntry[fcb->loc].gg;
-
     // printf("FILE SIZE: %d\n",fileSize);
 
     // Prevent reading past the end of the file
@@ -397,7 +401,6 @@ int b_read (b_io_fd fd, char * buffer, int count)
 
     // Update access time
     fcb->dirEntry->accessTime = time(NULL);
-
     return bufferWriteIndex;
 	}
 
@@ -411,14 +414,16 @@ int b_close (b_io_fd fd)
 		{
 		return (-1); 					//invalid file descriptor
 	}
-    
+    LBAwrite(fcbArray[fd].dirEntry, fcbArray[fd].dirEntry->size, fcbArray[fd].dirEntry->location);
 	fcbArray[fd].dirEntry->modificationTime = time(NULL);
     // Update the directory entry in its parent directory
     if(fcbArray[fd].buf != (char*)-1){
     free(fcbArray[fd].buf);
     }
     free(fcbArray[fd].path);
-    free(fcbArray[fd].dirEntry);
+    printf("PRE->");
+    freeIfNotNeeded(fcbArray[fd].dirEntry);
+    printf("post-[x] \n");
     // Clear the FCB
     fcbArray[fd].path = NULL;
     fcbArray[fd].buf = NULL;

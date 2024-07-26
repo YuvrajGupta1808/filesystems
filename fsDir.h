@@ -37,7 +37,7 @@ int initDir(int minNum, DirEntry* parent, int blockSize);
 // returns a pointer to the directory in memory
 DirEntry* DirToMem(int startBlock);
 // findNameInDir returns the location of a DE name within a parent
-int findNameInDir(DirEntry* parent, char* name);
+int findNameInDir(DirEntry* parent, const char* name);
 // findNameInDir returns the location of an available DE
 int findUnusedDE(DirEntry* parent);
 // entryIsDir returns 1 if dir is entry 0 otherwise
@@ -59,4 +59,6 @@ int getBlockSize();
 void setBlockSize(int blockSize);
 // setCWD frees old CWD if needed and sets passed in cwd as new
 void setCWD(DirEntry* newCWD);
+//frees root and cwd
+void freeNeededDirs();
 #endif

@@ -54,6 +54,7 @@ fdDir * fs_opendir(const char *pathname){
     
 
     if(retVal < 0){
+        freeIfNotNeeded(ppi->parent);
         free(ppi);
     printf("fs_opendir: ERROR IN PARSE PATH: %d\n", retVal);
         return NULL;
@@ -63,19 +64,16 @@ fdDir * fs_opendir(const char *pathname){
     if(ppi->posInParent == -1){
         return NULL;
     }
-    // path is to root
-    if(ppi->posInParent == -2){
-        fdDirArray[currentDir].directory = getRoot();
-        pos = 0;
-    }else{
+    
     // load if not needed
      fdDirArray[currentDir].directory = loadDir(ppi->parent, ppi->posInParent);
-    }
+    
     // fill struct values
     fdDirArray[currentDir].d_reclen = (ppi->parent[pos].size);
     fdDirArray[currentDir].dirEntryPosition = 0;
     fdDirArray[currentDir].currentDir = currentDir;
     fdDirArray[currentDir].di = malloc(sizeof(struct fs_diriteminfo));
+    freeIfNotNeeded(ppi->parent);
     free(ppi);
     free(pathCpy);
 
@@ -116,21 +114,27 @@ int fs_closedir(fdDir *dirp){
 int fs_stat(const char *path, struct fs_stat *buf){
     char *pathCpy = malloc(strlen(path)+1);
     strcpy(pathCpy,path);
-
     ppinfo* ppi = malloc(sizeof(ppinfo));
     int retVal = parsePath(pathCpy, ppi);
+    if(ppi->posInParent == -1){
+    freeIfNotNeeded(ppi->parent);
+    retVal = parsePath("/", ppi);
+    ppi->posInParent = findNameInDir(ppi->parent, path);
+    }
+
     free(pathCpy);
     if(retVal < 0){
             free(ppi);
             printf("fs_stat: ERROR IN PARSE PATH: %d\n", retVal);
             return -1;
     }
+    int byte = ppi->parent[ppi->posInParent].gg;
     // fill passed in buffer with values from parsePath
     buf->st_accesstime = ppi->parent[ppi->posInParent].accessTime;
     buf->st_blocks = ppi->parent[ppi->posInParent].size;
     buf->st_createtime = ppi->parent[ppi->posInParent].creationTime;
     buf->st_modtime = ppi->parent[ppi->posInParent].modificationTime;
-    buf->st_size = ppi->parent[ppi->posInParent].size;
+    buf->st_size = byte>0?byte:ppi->parent[ppi->posInParent].size;
 
     free(ppi);
     return 0;

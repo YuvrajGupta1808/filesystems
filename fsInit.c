@@ -22,9 +22,11 @@
 #include <string.h>
 
 #include "fsLow.h"
-#include "mfs.h"
 #include "fsBitmap.h"
+#include "fsPath.h"
+#include "mfs.h"
 #include "fsDir.h"
+#include "fsPath.h"
 
 // the VCB stucture holds data required to initilize/reinitilize
 // the filesystem
@@ -105,7 +107,8 @@ int initFileSystem (uint64_t numberOfBlocks, uint64_t blockSize)
 		setBlockSize(VCBP->blockSize);
 		reInitBitMap(blockSize*numberOfBlocks, VCBP->freeSpace);
 		setRoot(DirToMem(VCBP->locRootDir));
-		
+
+
 	}
 	// once data has been written and/or added to memory VCBP is no longer
 	// needed
@@ -120,6 +123,8 @@ int initFileSystem (uint64_t numberOfBlocks, uint64_t blockSize)
 	
 	void exitFileSystem ()
 	{
-	
-	printf ("System exiting\n");
+	freeNeededDirs();
+	freeBitMap();
+	freeSTRCWD();
+	printf("System exiting\n");
 	}

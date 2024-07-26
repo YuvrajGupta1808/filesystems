@@ -43,5 +43,7 @@ int clearBit(int bitNum);
 void writeBits();
 // printBitMap prints the first 100 bits
 void printBitMap();
+// freeBitmap frees the memory
+void freeBitMap();
 
 #endif

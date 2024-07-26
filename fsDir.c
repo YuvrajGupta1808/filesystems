@@ -120,15 +120,17 @@ DirEntry* DirToMem(int startBlock){
 	return temp;
 }
 
-int findNameInDir(DirEntry* parent, char* value){
+int findNameInDir(DirEntry* parent, const char* value){
 	// the total number of DE's in parent directory, used for itteration 
 	int numDE = (parent[0].size * gBlockSize)/sizeof(DirEntry);
 	for(int i = 0; i < numDE; i++){
+		// printf("%s -> %s\n", parent[i].name, value);
 		if(strcmp(parent[i].name, value) == 0){
+			// printf("FOUND: %s -> %s\n", parent[i].name, value);
 			return i;
 		}
 	}
-	
+	// printf("COULD NOT FIND: %s\n", value);
 	return -1;
 }
 
@@ -166,6 +168,9 @@ DirEntry* loadDir(DirEntry* parent, int pos){
 }
 
 void freeIfNotNeeded(DirEntry* parent){
+	if(parent == NULL){
+		return;
+	}
 	// not root
 	if(parent->location == root->location){
 		return;
@@ -189,6 +194,16 @@ void setCWD(DirEntry* value){
 	}
 	currentDir = value;
 }
+
+void freeNeededDirs(){
+	if(currentDir->location != root->location){
+		// if not free is okay
+		free(currentDir);
+	}
+	
+	free(root);
+}
+
 
 int getBlockSize(){
 	return gBlockSize;

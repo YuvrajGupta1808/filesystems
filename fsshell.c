@@ -27,6 +27,7 @@
 
 #include "fsLow.h"
 #include "mfs.h"
+#include "fsPath.h"
 
 #define PERMISSIONS (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH)
 
@@ -345,6 +346,7 @@ int cmd_cp (int argcnt, char *argvec[])
 	
 	
 	testfs_src_fd = b_open (src, O_RDONLY);
+	if (testfs_src_fd < 0) return (testfs_src_fd);
 	testfs_dest_fd = b_open (dest, O_WRONLY | O_CREAT | O_TRUNC);
 	do 
 		{
@@ -363,8 +365,35 @@ int cmd_cp (int argcnt, char *argvec[])
 int cmd_mv (int argcnt, char *argvec[])
 	{
 #if (CMDMV_ON == 1)				
-	return -99;
-	// **** TODO ****  For you to implement	
+	int testfs_src_fd;
+	int testfs_dest_fd;
+	char * src;
+	char * dest;
+	int readcnt;
+	char buf[BUFFERLEN];
+	
+	
+		
+	if(argcnt == 3){
+		src = argvec[1];
+		dest = argvec[2];
+	}else{
+		printf("Usage: mv srcfile destfile\n");
+		return (-1);
+	}
+
+	testfs_src_fd = b_open (src, O_RDONLY);
+	if (testfs_src_fd < 0) {return (testfs_src_fd);};
+	testfs_dest_fd = b_open (dest, O_WRONLY | O_CREAT | O_TRUNC);
+	if (testfs_dest_fd < 0) {return (testfs_src_fd);};
+	do 
+		{
+		readcnt = b_read (testfs_src_fd, buf, BUFFERLEN);
+		b_write (testfs_dest_fd, buf, readcnt);
+		} while (readcnt == BUFFERLEN);
+	b_close (testfs_src_fd);
+	b_close (testfs_dest_fd);
+	fs_delete(src);
 #endif
 	return 0;
 	}
@@ -453,10 +482,7 @@ int cmd_cp2l (int argcnt, char *argvec[])
 	linux_fd = open (dest, O_WRONLY | O_CREAT | O_TRUNC, PERMISSIONS);
 	do 
 		{
-			// printf("%s: %d\n", __FILE__, BUFFERLEN);
 		readcnt = b_read (testfs_fd, buf, BUFFERLEN);
-		// printf("%s: %d\n", __FILE__, readcnt);
-
 		write (linux_fd, buf, readcnt);
 		} while (readcnt == BUFFERLEN);
 	b_close (testfs_fd);
@@ -751,7 +777,6 @@ int main (int argc, char * argv[])
 	if (argc > 4)
 		if(strcmp("lowtest", argv[4]) == 0)
 			runFSLowTest();
-
 
 	using_history();
 	stifle_history(200);	//max history entries
