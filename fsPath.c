@@ -12,7 +12,7 @@ int size = 0;
 // adds new value to top of stack
 void push(char* value){
     // allocate memory for str
-    stack[size] = malloc(strlen(value) + 1); 
+    stack[size] = malloc(strlen(value) + 1);
     if (stack[size] == NULL) {
         return;
     }
@@ -23,12 +23,12 @@ void push(char* value){
 }
 
 void pop(){
+    // decrement size
+    size--;
     // free alocated memory
     free(stack[size]);
     // set values to null
     stack[size] = NULL;
-    // decrement size 
-    size--;
 }
 
 char* toString(){
@@ -38,21 +38,26 @@ char* toString(){
     for(int i = 0; i < size; i++){
         strLen += strlen(stack[i])+1;
     }
-    // allocate the memory
-    char *newStrPath = realloc(strPath, strLen + 2);    
-    if (newStrPath == NULL) {
-    return NULL;
+    // if strPath is not null free it
+    if (strPath != NULL) {
+        free(strPath);
+        strPath = NULL;
     }
-
+    // allocate the memory
+    char *newStrPath = realloc(strPath, strLen + 2);
+    if (newStrPath == NULL) {
+        return NULL;
+    }
+    // set strPath to newStrPath
     strPath = newStrPath;
     strPath[0] = '\0';
-
-// iterate over size concatinating string
+    
+    // iterate over size concatinating string
     for(int i = 0; i < size; i++){
         strcat(strPath, "/");
         strcat(strPath, stack[i]);
     }
-// add final '/'
+    // add final '/'
     strcat(strPath, "/");
     return strPath;
 }
@@ -65,46 +70,46 @@ void pathCleaner(char* path){
             pop();
         }
     }
-
+    
     char* token1 = strtok(path,"/");
     //tokenize entire string by '/'
     while(token1 != NULL){
-    // if toke n is '.' then no need to add to stack
-    if(strcmp(token1,".") == 0){
+        // if toke n is '.' then no need to add to stack
+        if(strcmp(token1,".") == 0){
+            token1 = strtok(NULL,"/");
+            continue;
+        }else
+            // if token is '..' then we need to remove last index
+            if(strcmp(token1,"..") == 0){
+                // as long as it is not at the top
+                if(size > 0 ){
+                    pop();
+                }
+            }else{
+                // if it is not '.' or '..' then just add it
+                push(token1);
+            }
         token1 = strtok(NULL,"/");
-        continue;
-    }else
-    // if token is '..' then we need to remove last index
-    if(strcmp(token1,"..") == 0){
-        // as long as it is not at the top 
-        if(size > 0 ){
-        pop();
-        }
-    }else{
-        // if it is not '.' or '..' then just add it
-        push(token1);
-    }
-    token1 = strtok(NULL,"/");
     };
     
     
 }
 
-int parsePath(char* path, ppinfo* ppi){  
-  // if path is not valid return error
+int parsePath(char* path, ppinfo* ppi){
+    // if path is not valid return error
     if(path == NULL){
         return -1;
     }
     DirEntry* start;
     if(path[0] == '/'){
         start = getRoot();
-
+        
     }else{
         start = getCWD();
     }
     DirEntry* parent = start;
     start = NULL;
-
+    
     char* token1 = strtok(path,"/");
     // if path is just /
     if(token1 == NULL){
@@ -113,9 +118,9 @@ int parsePath(char* path, ppinfo* ppi){
         ppi->posInParent = 0;
         return 0;
     }
-
+    
     char *token2;
-
+    
     do{
         // set position at start of iteration so it is always up to date
         ppi->posInParent = findNameInDir(parent, token1);
@@ -128,7 +133,7 @@ int parsePath(char* path, ppinfo* ppi){
             ppi->lastElement = token1;
             return 0;
         }
-
+        // if path is invalid
         if(ppi->posInParent < 0){
             ppi->parent = NULL;
             ppi->lastElement;
@@ -164,13 +169,14 @@ void freePPI(ppinfo* ppi){
 }
 
 void freeSTRCWD(){
-
-    for(int i = 0; i < size;i++){
-        free(stack[i]);
+    
+    while(size > 0 ){
+        pop();
     }
-
+    
     if(strPath != NULL){
-    free(strPath);
+        free(strPath);
     }
 }
+
 

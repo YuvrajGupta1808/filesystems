@@ -560,8 +560,7 @@ int cmd_cd (int argcnt, char *argvec[])
 	int ret = fs_setcwd (path);
 	if (ret != 0)	//error
 		{
-			
-		printf ("Could not change path to %s %d\n", path,ret);
+		printf ("Could not change path to %s\n", path);
 		return (ret);
 		}			
 #endif

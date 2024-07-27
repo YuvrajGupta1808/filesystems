@@ -85,13 +85,13 @@ b_io_fd b_open (char * filename, int flags)
 		return -1;
 	}
 
-        char* pathCpy = malloc(strlen(filename)+1);
-        if(pathCpy == NULL){
-            free(ppi);
-            return -1;
-        }
+    char* pathCpy = malloc(strlen(filename)+1);
+    if(pathCpy == NULL){
+        free(ppi);
+        return -1;
+    }
 	
-	    strcpy(pathCpy, filename);
+	strcpy(pathCpy, filename);
         
     if (parsePath(pathCpy, ppi) < 0) {
         printf("Error parsing path: %s\n", filename);
@@ -100,46 +100,20 @@ b_io_fd b_open (char * filename, int flags)
         return -1;
     }
 
-
-
     int DEloc = ppi->posInParent;
     DirEntry* dirEntry = ppi->parent;
     int at = ppi->posInParent;
-    // need to create
-    if (DEloc == -1 && (flags & O_CREAT)) {
-        printf("CREATE A FILE\n");
-        at = findUnusedDE(dirEntry);
-          if ((at == -1)) {
+
+    // file does not exist
+    if (DEloc == -1) {
+        at = createFile(ppi->lastElement, 200, dirEntry, flags);
+        if (at == -1) {
+            printf("cant create file %s\n", filename);
             freePPI(ppi);
             free(pathCpy);
-            printf("No free directory entry available.\n");
             return -1;
         }
-
-        int newLoc = nextFree(100); // Find free block
-        strncpy(dirEntry[at].name, ppi->lastElement, 254);
-
-        dirEntry[at].creationTime = time(NULL);
-        dirEntry[at].modificationTime = dirEntry->creationTime;
-        dirEntry[at].accessTime = dirEntry->creationTime;
-        dirEntry[at].permissions |= FILE ;
-        dirEntry[at].size = 200;
-        dirEntry[at].gg = 0;
-        dirEntry[at].location = newLoc;
-
-        for(int i = 0; i < 100; i++){
-        setBit(newLoc+i);       // Mark block as used
-        }
-        writeBits(); // Update the free space bitmap
-
-
-        LBAwrite(dirEntry, dirEntry->size, dirEntry->location);
-    } else if (DEloc == -1) {
-        freePPI(ppi);
-        free(pathCpy);
-        return -1;
-    }
-
+    } 
     if (startup == 0) b_init();
 
     b_io_fd fd = b_getFCB();
@@ -149,13 +123,20 @@ b_io_fd b_open (char * filename, int flags)
         return -1;
         };
     
-if(entryIsDir(dirEntry,ppi->posInParent)){
-    freeIfNotNeeded(ppi->parent);
-    printf("Entry is already a directory\n");
-    freePPI(ppi);
-    free(pathCpy);
-    return -1;
-}
+    // Check if the path already belongs to a directory
+    if(entryIsDir(dirEntry,ppi->posInParent)){
+        freeIfNotNeeded(ppi->parent);
+        printf("%s is a directory\n", ppi->lastElement);
+        freePPI(ppi);
+        free(pathCpy);
+        return -1;
+    }
+
+    if (flags & O_TRUNC){
+        dirEntry[at].gg = 0;
+        LBAwrite(dirEntry, dirEntry->size, dirEntry->location);
+    }
+
     fcbArray[fd].path = strdup(filename);
     fcbArray[fd].offset = dirEntry->size;
     fcbArray[fd].loc = at;
@@ -166,8 +147,9 @@ if(entryIsDir(dirEntry,ppi->posInParent)){
     fcbArray[fd].buflen = 0;
     fcbArray[fd].flag = flags;
 
-// printf("%d| \"%s\": size: %d\n",fd, ppi->lastElement,fcbArray[fd].dirEntry[at].gg);
-	free(pathCpy);
+    // printf("%d| \"%s\": size: %d\n",fd, ppi->lastElement,fcbArray[fd].dirEntry[at].gg);
+    free(pathCpy);
+    free(ppi);
 	return (fd);						// all set
 	}
 
@@ -192,7 +174,6 @@ int b_seek (b_io_fd fd, off_t offset, int whence)
 // Interface to write function	
 int b_write (b_io_fd fd, char * buffer, int count)
 	{
-
 	if (startup == 0) b_init();  //Initialize our system
 
 	// check that fd is between 0 and (MAXFCBS-1)
@@ -207,7 +188,7 @@ int b_write (b_io_fd fd, char * buffer, int count)
     
     // Check if the file is read-only
     if (fcb->flag & O_RDONLY) {
-        printf("b_write error: File is read-only.\n");
+        printf("File is read-only.\n");
         return -1;
     }
 
@@ -218,11 +199,16 @@ int b_write (b_io_fd fd, char * buffer, int count)
     }
 
     if (fcb->buf == (char *)-1) {
+        int bytes = fcb->dirEntry[fcb->loc].gg;
         fcb->buf = malloc(B_CHUNK_SIZE);
-        fcb->block_index = fcb->dirEntry[fcb->loc].location;
+        if(fcb->buf == NULL){
+            return -1;
+        }
+        fcb->dirEntry[fcb->loc].gg = 
+        fcb->flag & O_APPEND ? 0 : bytes;
+        fcb->block_index = fcb->dirEntry[fcb->loc].location + (bytes/B_CHUNK_SIZE);
         LBAread(fcb->buf, 1, fcb->block_index);
-        fcb->buflen = 0;
-        fcb->dirEntry[fcb->loc].gg = 0;
+        fcb->buflen = bytes % B_CHUNK_SIZE;
     }
 
     // Update access time
@@ -311,8 +297,16 @@ int b_read (b_io_fd fd, char * buffer, int count)
 		}
 
     b_fcb *fcb = &fcbArray[fd];
+        if(fcb->flag & O_RDONLY){
+        printf("File is write-only.\n");
+        return -1;
+    }
+
     if (fcb->buf == (char *)-1) {
         fcb->buf = malloc(B_CHUNK_SIZE);
+        if(fcb->buf == NULL){
+            return -1;
+        }
         fcb->block_index = fcb->dirEntry[fcb->loc].location;
         LBAread(fcb->buf, 1, fcb->block_index);
         fcb->block_index++;
@@ -412,3 +406,36 @@ int b_close (b_io_fd fd)
     fcbArray[fd].buflen = 0;
 	return 0;
 	}
+
+int createFile(char *name, int size, DirEntry* dirEntry, int flags) {
+    if (!(flags & O_CREAT)) {
+        printf("cant create file(flags)\n");
+        return -1;
+    }
+
+    int at = findUnusedDE(dirEntry);
+    if (at == -1) {
+        printf("No free directory entry available.\n");
+        return -1;
+    }
+
+    int newLoc = nextFree(size);
+    strncpy(dirEntry[at].name, name, 255);
+
+    dirEntry[at].creationTime = time(NULL);
+    dirEntry[at].modificationTime = dirEntry->creationTime;
+    dirEntry[at].accessTime = dirEntry->creationTime;
+    dirEntry[at].permissions |= FILE;
+    dirEntry[at].size = size;
+    dirEntry[at].gg = 0;
+    dirEntry[at].location = newLoc;
+
+    for (int i = 0; i < size; i++) {
+        setBit(newLoc + i);
+    }
+    writeBits();
+
+    LBAwrite(dirEntry, dirEntry->size, dirEntry->location);
+
+    return at;
+}

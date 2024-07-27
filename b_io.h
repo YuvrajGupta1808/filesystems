@@ -15,6 +15,7 @@
 #ifndef _B_IO_H
 #define _B_IO_H
 #include <fcntl.h>
+#include "fsDir.h"
 
 typedef int b_io_fd;
 
@@ -23,6 +24,7 @@ int b_read (b_io_fd fd, char * buffer, int count);
 int b_write (b_io_fd fd, char * buffer, int count);
 int b_seek (b_io_fd fd, off_t offset, int whence);
 int b_close (b_io_fd fd);
+int createFile(char *name, int size, DirEntry* dirEntry, int flags);
 
 #endif
 

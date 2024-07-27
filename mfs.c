@@ -36,8 +36,8 @@ int fs_setcwd(char *pathname){
     DirEntry* entry = ppi->parent;
     // make sure last value is a valid directory
     if(!entryIsDir(entry, ppi->posInParent)){
+        printf("fs_setcwd: is not a valid path\n");
         freePPI(ppi);
-        printf("ERROR IS NOT A DIR: %d\n", retVal);
         return -1;
     }
     // load the directory to memory
@@ -92,6 +92,7 @@ int fs_mkdir(const char *pathname, mode_t mode){
     strcpy(val[loc].name,ppi->lastElement);
     //save to disk
     LBAwrite(val, val->size,val->location);
+    freeIfNotNeeded(newDir);
     freePPI(ppi);    
     free(pathCpy);
     return 0;
@@ -102,7 +103,8 @@ char* fs_getcwd(char *pathBuf, size_t size){
     return retVal;
 }
 
-int fs_isFile(char * filename){
+// fs_isFile returns 1 if it is a file, 0 if it not
+int fs_isFile(const char * filename){
     // allocate memory for return value of parsePath
     ppinfo* ppi = malloc(sizeof(ppinfo));
     if (ppi == NULL) {
@@ -268,10 +270,18 @@ int fs_rmdir(const char *pathname){
     if(parentDir[dirIndex].location == getRoot()->location){
         printf("Cant remove root\n");
         freePPI(ppi);
+        freeIfNotNeeded(childDE);
+        return -1;
+    }
+
+    if(parentDir[dirIndex].location == getCWD()->location){
+        printf("Cant remove CWD\n");
+        freePPI(ppi);
+        freeIfNotNeeded(childDE);
         return -1;
     }
     
-    //Check if directory is empty, we cannot delete if directory isn't empty
+    //Check if directory is empty
     if(!isDirEmpty(childDE)){
         printf("cannot remove. Directory isn't empty.\n");
         freePPI(ppi);

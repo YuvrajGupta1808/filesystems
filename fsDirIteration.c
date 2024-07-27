@@ -23,6 +23,7 @@ void init (){
     hasInit = 1;
 }
 
+
 int getFdDir (){
     for (int i = 0; i < MAXFDIR; i++){
         //return first free file descriptor directory
@@ -46,17 +47,17 @@ fdDir * fs_opendir(const char *pathname){
     if(currentDir == -1){
         return NULL;
     }
+    // copy path to avoid changing original
     char *pathCpy = malloc(strlen(pathname)+1);
     strcpy(pathCpy, pathname);
-        
+  
     ppinfo* ppi = malloc(sizeof(ppinfo));
     int retVal = parsePath(pathCpy, ppi);
     
 
     if(retVal < 0){
-        freeIfNotNeeded(ppi->parent);
-        free(ppi);
-    printf("fs_opendir: ERROR IN PARSE PATH: %d\n", retVal);
+        freePPI(ppi);
+        printf("fs_opendir: ERROR IN PARSE PATH: %d\n", retVal);
         return NULL;
     }
 
@@ -111,21 +112,15 @@ int fs_closedir(fdDir *dirp){
 }
 
 int fs_stat(const char *path, struct fs_stat *buf){
-    char *pathCpy = malloc(strlen(path)+1);
-    strcpy(pathCpy,path);
+    char *pathCpy = strdup(path);
     ppinfo* ppi = malloc(sizeof(ppinfo));
     int retVal = parsePath(pathCpy, ppi);
-    if(ppi->posInParent == -1){
-    freeIfNotNeeded(ppi->parent);
-    retVal = parsePath("/", ppi);
-    ppi->posInParent = findNameInDir(ppi->parent, path);
-    }
 
     free(pathCpy);
     if(retVal < 0){
-            freePPI(ppi);
-            printf("fs_stat: ERROR IN PARSE PATH: %d\n", retVal);
-            return -1;
+        freePPI(ppi);
+        printf("fs_stat: ERROR IN PARSE PATH: %d\n", retVal);
+        return -1;
     }
     int byte = ppi->parent[ppi->posInParent].gg;
     // fill passed in buffer with values from parsePath
@@ -133,7 +128,7 @@ int fs_stat(const char *path, struct fs_stat *buf){
     buf->st_blocks = ppi->parent[ppi->posInParent].size;
     buf->st_createtime = ppi->parent[ppi->posInParent].creationTime;
     buf->st_modtime = ppi->parent[ppi->posInParent].modificationTime;
-    buf->st_size = byte>0?byte:ppi->parent[ppi->posInParent].size;
+    buf->st_size = fs_isFile(path)?byte:ppi->parent[ppi->posInParent].size;
 
     freePPI(ppi);
     return 0;

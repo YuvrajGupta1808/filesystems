@@ -118,6 +118,9 @@ void printBitMap(){
 }
 
 void freeBitMap(){
-    free(freeSpaceMap.map);
+    if (freeSpaceMap.map != NULL) {
+        free(freeSpaceMap.map);
+        freeSpaceMap.map = NULL;
+    }
 }
 
