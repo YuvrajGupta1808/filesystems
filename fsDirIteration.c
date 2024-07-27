@@ -73,8 +73,7 @@ fdDir * fs_opendir(const char *pathname){
     fdDirArray[currentDir].dirEntryPosition = 0;
     fdDirArray[currentDir].currentDir = currentDir;
     fdDirArray[currentDir].di = malloc(sizeof(struct fs_diriteminfo));
-    freeIfNotNeeded(ppi->parent);
-    free(ppi);
+    freePPI(ppi);
     free(pathCpy);
 
     return &fdDirArray[currentDir];
@@ -124,7 +123,7 @@ int fs_stat(const char *path, struct fs_stat *buf){
 
     free(pathCpy);
     if(retVal < 0){
-            free(ppi);
+            freePPI(ppi);
             printf("fs_stat: ERROR IN PARSE PATH: %d\n", retVal);
             return -1;
     }
@@ -136,6 +135,6 @@ int fs_stat(const char *path, struct fs_stat *buf){
     buf->st_modtime = ppi->parent[ppi->posInParent].modificationTime;
     buf->st_size = byte>0?byte:ppi->parent[ppi->posInParent].size;
 
-    free(ppi);
+    freePPI(ppi);
     return 0;
 }

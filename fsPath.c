@@ -92,14 +92,12 @@ void pathCleaner(char* path){
 
 int parsePath(char* path, ppinfo* ppi){  
   // if path is not valid return error
-//   printf("z>Path: %s\n", path);
     if(path == NULL){
         return -1;
     }
     DirEntry* start;
     if(path[0] == '/'){
         start = getRoot();
-        //   printf("ROOT:%d \n", start->location);
 
     }else{
         start = getCWD();
@@ -112,8 +110,6 @@ int parsePath(char* path, ppinfo* ppi){
     if(token1 == NULL){
         ppi->parent = parent;
         ppi->lastElement = NULL;
-        // this is to allow us to get the information of this DE bc '.' is at
-        // location 0
         ppi->posInParent = 0;
         return 0;
     }
@@ -134,7 +130,8 @@ int parsePath(char* path, ppinfo* ppi){
         }
 
         if(ppi->posInParent < 0){
-            printf("cant find %s\n",token1);
+            ppi->parent = NULL;
+            ppi->lastElement;
             return -2;
         }
         
@@ -161,6 +158,11 @@ char* getCWDStr(){
     return toString();
 }
 
+void freePPI(ppinfo* ppi){
+    freeIfNotNeeded(ppi->parent);
+    free(ppi);
+}
+
 void freeSTRCWD(){
 
     for(int i = 0; i < size;i++){
@@ -171,3 +173,4 @@ void freeSTRCWD(){
     free(strPath);
     }
 }
+

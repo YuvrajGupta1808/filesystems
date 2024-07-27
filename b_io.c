@@ -92,9 +92,10 @@ b_io_fd b_open (char * filename, int flags)
         }
 	
 	    strcpy(pathCpy, filename);
-        if (parsePath(pathCpy, ppi) < 0) {
+        
+    if (parsePath(pathCpy, ppi) < 0) {
         printf("Error parsing path: %s\n", filename);
-        free(ppi);
+        freePPI(ppi);
         free(pathCpy);
         return -1;
     }
@@ -102,7 +103,6 @@ b_io_fd b_open (char * filename, int flags)
 
 
     int DEloc = ppi->posInParent;
-    printf("DEloc: %d\n", DEloc);
     DirEntry* dirEntry = ppi->parent;
     int at = ppi->posInParent;
     // need to create
@@ -110,8 +110,7 @@ b_io_fd b_open (char * filename, int flags)
         printf("CREATE A FILE\n");
         at = findUnusedDE(dirEntry);
           if ((at == -1)) {
-            freeIfNotNeeded(ppi->parent);
-            free(ppi);
+            freePPI(ppi);
             free(pathCpy);
             printf("No free directory entry available.\n");
             return -1;
@@ -136,8 +135,7 @@ b_io_fd b_open (char * filename, int flags)
 
         LBAwrite(dirEntry, dirEntry->size, dirEntry->location);
     } else if (DEloc == -1) {
-        freeIfNotNeeded(ppi->parent);
-        free(ppi);
+        freePPI(ppi);
         free(pathCpy);
         return -1;
     }
@@ -146,15 +144,15 @@ b_io_fd b_open (char * filename, int flags)
 
     b_io_fd fd = b_getFCB();
     if (fd < 0) {
-        free(ppi);
+        freePPI(ppi);
         free(pathCpy);
         return -1;
-        }; // No available FCB
+        };
     
 if(entryIsDir(dirEntry,ppi->posInParent)){
     freeIfNotNeeded(ppi->parent);
     printf("Entry is already a directory\n");
-    free(ppi);
+    freePPI(ppi);
     free(pathCpy);
     return -1;
 }
@@ -169,9 +167,7 @@ if(entryIsDir(dirEntry,ppi->posInParent)){
     fcbArray[fd].flag = flags;
 
 // printf("%d| \"%s\": size: %d\n",fd, ppi->lastElement,fcbArray[fd].dirEntry[at].gg);
-    free(ppi);
 	free(pathCpy);
-
 	return (fd);						// all set
 	}
 
@@ -186,29 +182,10 @@ int b_seek (b_io_fd fd, off_t offset, int whence)
 		{
 		return (-1); 					//invalid file descriptor
 		}
-		
-		
-    switch (whence) {
-        case SEEK_SET:
-            fcbArray[fd].offset = offset;
-            break;
-        case SEEK_CUR:
-            fcbArray[fd].offset += offset;
-            break;
-        case SEEK_END:
-            fcbArray[fd].offset = fcbArray[fd].dirEntry->size + offset;
-            break;
-        default:
-            return -1; // Invalid whence
-    }
 
-    if (fcbArray[fd].offset < 0) {
-        fcbArray[fd].offset = 0;
-        return -1; // Offset cannot be negative
-    }
 
-    return fcbArray[fd].offset;
-}
+	return (0); //Change this
+	}
 
 
 
@@ -297,6 +274,7 @@ int b_write (b_io_fd fd, char * buffer, int count)
     // printf("File: size: %d | location : %d\n", fcb->dirEntry->size, fcb->dirEntry->location);
 
     LBAwrite(fcb->dirEntry, fcb->dirEntry->size, fcb->dirEntry->location);
+    // printf("%d| wrote %d size: %d\n",fd,added,fcbArray[fd].dirEntry[fcb->loc].gg);
     return added; // return the number of bytes written
 	}
 
@@ -401,6 +379,7 @@ int b_read (b_io_fd fd, char * buffer, int count)
 
     // Update access time
     fcb->dirEntry->accessTime = time(NULL);
+    // printf("%d| read %d: size: %d\n",fd,bufferWriteIndex,fcbArray[fd].dirEntry[fcb->loc].gg);
     return bufferWriteIndex;
 	}
 
@@ -421,9 +400,7 @@ int b_close (b_io_fd fd)
     free(fcbArray[fd].buf);
     }
     free(fcbArray[fd].path);
-    printf("PRE->");
     freeIfNotNeeded(fcbArray[fd].dirEntry);
-    printf("post-[x] \n");
     // Clear the FCB
     fcbArray[fd].path = NULL;
     fcbArray[fd].buf = NULL;

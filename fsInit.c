@@ -33,9 +33,9 @@
 typedef struct VCB
 {
 	int totalBlocks; // total blocks availible to use
- 	int blockSize;   // # of bytes per block
+ 	int blockSize;   // num of bytes per block
  	int locRootDir;  // block # for start of root dir
-	int freeSpace;   // # of blocks that represent free space bit map
+	int freeSpace;   // num of blocks that represent free space bit map
 	int signature;   // used to verify if volume has been formated/used
 } VCB;
 

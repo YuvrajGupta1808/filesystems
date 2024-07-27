@@ -160,10 +160,11 @@ DirEntry* loadDir(DirEntry* parent, int pos){
 	if(parent[pos].location == root->location){
 		return root;
 	}
-
-	if(currentDir->location == parent[pos].location){
+	if( parent[pos].location == currentDir->location){
 		return currentDir;
 	}
+
+	
 	return DirToMem(parent[pos].location);
 }
 
@@ -188,7 +189,8 @@ DirEntry* getCWD(){
 
 void setCWD(DirEntry* value){
 	// checks if cwd is root
-	if(currentDir->location != root->location){
+	if(currentDir->location != root->location &&
+	 currentDir->location != value->location){
 		// if not free is okay
 		free(currentDir);
 	}

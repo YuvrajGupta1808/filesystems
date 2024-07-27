@@ -3,6 +3,7 @@
         "fsbitmap.h": "c",
         "fslow.h": "c",
         "stdlib.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "fsdir.h": "c"
     }
 }
