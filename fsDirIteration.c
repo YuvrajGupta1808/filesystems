@@ -1,3 +1,19 @@
+/**************************************************************
+* Class::  CSC-415-01 Summer 2024
+* Name:: Yuvraj Gupta, Fasika Abera, Sulav Jung Hamal, Miguel Maurer
+* Student IDs:: 922933190, 923038932, 923075813, 922097199
+* GitHub-Name:: YuvrajGupta1808, Fasikaabera, Sulavjung, miguelCmaurer
+* Group-Name:: Satisfaction
+* Project:: Basic File System
+*
+* File:: fsDirIteration.c
+*
+* Description:: This file implements a basic directory management system fro a 
+* file system, it includes functions to open, read, and close directory streams,
+* as well as retrieve file status information. 
+*
+**************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +26,7 @@ int hasInit = 0;
 
 // initilize fdDirArray to contain null values
 void init (){
-    // already ran, return
+    // Check if already initialized
     if (hasInit){
         return;
     }
@@ -19,11 +35,11 @@ void init (){
         fdDirArray[i].di = NULL; 
     }
 
-    // record that function has run
+    // Store that the function has already ran.
     hasInit = 1;
 }
 
-
+//Get the first available fiel descriptor directory.
 int getFdDir (){
     for (int i = 0; i < MAXFDIR; i++){
         //return first free file descriptor directory
@@ -35,7 +51,7 @@ int getFdDir (){
     return (-1);
 }
 
-
+//Open directory stream.
 fdDir * fs_opendir(const char *pathname){
     // initilize if needed
     if(hasInit == 0){
@@ -80,16 +96,19 @@ fdDir * fs_opendir(const char *pathname){
     return &fdDirArray[currentDir];
 }
 
+//Read a directory entry.
 struct fs_diriteminfo *fs_readdir(fdDir *dirp){
     
+    //Skip entries with location 0
     while(dirp->directory[dirp->currentDir].location == 0 && dirp->currentDir != dirp->directory->size){
         dirp->currentDir+=1;
     }
 
-        // reached end of directorys size
+    // reached end of directorys size
     if(dirp->currentDir == dirp->directory->size){
         return NULL;
     }
+
     //use current dir value to fill struct
     DirEntry* cur = &dirp->directory[dirp->currentDir];
     strncpy(fdDirArray[dirp->dirEntryPosition].di->d_name,cur->name,255);
@@ -102,6 +121,7 @@ struct fs_diriteminfo *fs_readdir(fdDir *dirp){
     return fdDirArray[dirp->dirEntryPosition].di;
 }
 
+//Close a directory stream
 int fs_closedir(fdDir *dirp){
     // free unneeded memory
     free(fdDirArray[dirp->dirEntryPosition].di);
@@ -111,6 +131,7 @@ int fs_closedir(fdDir *dirp){
     return dirp->dirEntryPosition;
 }
 
+//Get file status. 
 int fs_stat(const char *path, struct fs_stat *buf){
     char *pathCpy = strdup(path);
     ppinfo* ppi = malloc(sizeof(ppinfo));
