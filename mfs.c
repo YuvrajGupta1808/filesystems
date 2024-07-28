@@ -1,3 +1,20 @@
+/**************************************************************
+* Class::  CSC-415-01 Summer 2024
+* Name:: Yuvraj Gupta, Fasika Abera, Sulav Jung Hamal, Miguel Maurer
+* Student IDs:: 922933190, 923038932, 923075813, 922097199
+* GitHub-Name:: YuvrajGupta1808, Fasikaabera, Sulavjung, miguelCmaurer
+* Group-Name:: Satisfaction
+* Project:: Basic File System
+*
+* File:: mfs.c
+*
+* Description:: 
+*	This is the file system interface.
+*	This is the interface needed by the driver to interact with
+*	your filesystem.
+*
+**************************************************************/
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -9,7 +26,17 @@
 
 char* strCWD;
 
+// helper to check if directory is empty
+int isDirEmpty(DirEntry* dirEntry){
+    for(int i = 2; i < dirEntry->size; i++){
+        if(dirEntry[i].location != 0){
+            return 0;
+        }
+    }
+    return 1;
+}
 
+//Method to set the current working directory. 
 int fs_setcwd(char *pathname){
     // allocate memory for return value of parsePath
     ppinfo* ppi = malloc(sizeof(ppinfo));
@@ -50,6 +77,7 @@ int fs_setcwd(char *pathname){
     return 0;
 }
 
+//Fucntion to create a new directory. Used by the md command in shell. 
 int fs_mkdir(const char *pathname, mode_t mode){
     // allocate memory for return value of parsePath
     
@@ -98,6 +126,7 @@ int fs_mkdir(const char *pathname, mode_t mode){
     return 0;
 }
 
+//Method to get the current working directory. 
 char* fs_getcwd(char *pathBuf, size_t size){
     char* retVal =  strncpy(pathBuf, getCWDStr() ,size);
     return retVal;
@@ -137,6 +166,7 @@ int fs_isFile(const char * filename){
     return retVal;
 }
 
+//Function that returns if the directory is file or directory. 
 int fs_isDir(char * filename){
     
     // allocate memory for return value of parsePath
@@ -173,6 +203,7 @@ int fs_isDir(char * filename){
     return retVal;
 }
 
+//Deletes the directory 
 int fs_delete(char* filename){
     //allocate memory for storing parsePath info
     ppinfo* ppi = malloc(sizeof(ppinfo));
@@ -224,16 +255,8 @@ int fs_delete(char* filename){
     return 0;
 }
 
-// helper to check if directory is empty
-int isDirEmpty(DirEntry* dirEntry){
-    for(int i = 2; i < dirEntry->size; i++){
-        if(dirEntry[i].location != 0){
-            return 0;
-        }
-    }
-    return 1;
-}
 
+//Method to remove the given directory. 
 int fs_rmdir(const char *pathname){
     //allocate memory for storing parsePath info
     ppinfo* ppi = malloc(sizeof(ppinfo));
@@ -306,3 +329,5 @@ int fs_rmdir(const char *pathname){
     
     return 0;
 }
+
+
