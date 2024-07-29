@@ -74,7 +74,7 @@ int initFileSystem (uint64_t numberOfBlocks, uint64_t blockSize)
 		VCBP->freeSpace = freeSpaceBlocks;
 
 		// initilize bit map for free space
-		int retVal = initBitMap(blockSize*numberOfBlocks, freeSpaceBlocks);
+		int retVal = initBitMap(blockSize*freeSpaceBlocks, freeSpaceBlocks);
 		if(retVal < 0){
 			free(VCBP);
 			return -1;
@@ -105,7 +105,9 @@ int initFileSystem (uint64_t numberOfBlocks, uint64_t blockSize)
 	}else{
 		// restore data from VCB to reinitilize BitMap and root directory
 		setBlockSize(VCBP->blockSize);
-		reInitBitMap(blockSize*numberOfBlocks, VCBP->freeSpace);
+		int freeSpaceBytes = (numberOfBlocks+7)/8;
+		int freeSpaceBlocks = (freeSpaceBytes + (blockSize-1))/blockSize;
+		reInitBitMap(blockSize*freeSpaceBlocks, VCBP->freeSpace);
 		setRoot(DirToMem(VCBP->locRootDir));
 
 

@@ -40,9 +40,7 @@ int isDirEmpty(DirEntry* dirEntry){
 int fs_setcwd(char *pathname){
     // allocate memory for return value of parsePath
     ppinfo* ppi = malloc(sizeof(ppinfo));
-    
     char *pathCpy = strdup(pathname);
-
     
     int retVal = parsePath(pathCpy, ppi);
     free(pathCpy);

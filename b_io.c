@@ -125,7 +125,6 @@ b_io_fd b_open (char * filename, int flags)
     
     // Check if the path already belongs to a directory
     if(entryIsDir(dirEntry,ppi->posInParent)){
-        freeIfNotNeeded(ppi->parent);
         printf("%s is a directory\n", ppi->lastElement);
         freePPI(ppi);
         free(pathCpy);

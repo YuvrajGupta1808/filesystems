@@ -100,35 +100,36 @@ fdDir * fs_opendir(const char *pathname){
 struct fs_diriteminfo *fs_readdir(fdDir *dirp){
     
     //Skip entries with location 0
-    while(dirp->directory[dirp->currentDir].location == 0 && dirp->currentDir != dirp->directory->size){
-        dirp->currentDir+=1;
+    while(dirp->directory[dirp->dirEntryPosition].location == 0 
+            && dirp->dirEntryPosition != dirp->directory->size){
+        dirp->dirEntryPosition+=1;
     }
 
     // reached end of directorys size
-    if(dirp->currentDir == dirp->directory->size){
+    if(dirp->dirEntryPosition == dirp->directory->size){
         return NULL;
     }
 
-    //use current dir value to fill struct
-    DirEntry* cur = &dirp->directory[dirp->currentDir];
-    strncpy(fdDirArray[dirp->dirEntryPosition].di->d_name,cur->name,255);
+    //use dirEntryPositioncurrent dir value to fill struct
+    DirEntry* cur = &dirp->directory[dirp->dirEntryPosition];
+    strncpy(fdDirArray[dirp->currentDir].di->d_name,cur->name,255);
 
-    fdDirArray[dirp->dirEntryPosition].di->d_reclen = cur->size*getBlockSize();
-    fdDirArray[dirp->dirEntryPosition].di->fileType = cur->permissions;
+    fdDirArray[dirp->currentDir].di->d_reclen = cur->size*getBlockSize();
+    fdDirArray[dirp->currentDir].di->fileType = cur->permissions;
     
     // update current dir value
-    dirp->currentDir+=1;
-    return fdDirArray[dirp->dirEntryPosition].di;
+    dirp->dirEntryPosition+=1;
+    return fdDirArray[dirp->currentDir].di;
 }
 
 //Close a directory stream
 int fs_closedir(fdDir *dirp){
     // free unneeded memory
-    free(fdDirArray[dirp->dirEntryPosition].di);
+    free(fdDirArray[dirp->currentDir].di);
     freeIfNotNeeded(dirp->directory);
     // set value dir info to null
-    fdDirArray[dirp->dirEntryPosition].di = NULL;
-    return dirp->dirEntryPosition;
+    fdDirArray[dirp->currentDir].di = NULL;
+    return dirp->currentDir;
 }
 
 //Get file status. 
