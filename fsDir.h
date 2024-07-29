@@ -2,7 +2,7 @@
 * Class::  CSC-415-01 Summer 2024
 * Name:: Yuvraj Gupta, Fasika Abera, Sulav Jung Hamal, Miguel Maurer
 * Student IDs:: 922933190, 923038932, 923075813, 922097199
-* GitHub-Name:: YuvrajGupta1808, Fasikaabera, Sulavjung, miguelCmaurer
+* GitHub-Name:: miguelCmaurer
 * Group-Name:: Satisfaction
 * Project:: Basic File System
 *
