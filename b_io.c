@@ -194,7 +194,8 @@ int b_write (b_io_fd fd, char * buffer, int count)
     if(fcb->dirEntry[fcb->loc].gg + count > fcb->dirEntry[fcb->loc].size * B_CHUNK_SIZE ){
         //TODO 
         //COPY FILE TO NEW LOCATION WITH MORE SiZE
-        printf("FILE \"%s\" @ %d | TOO BIG| size is: %d > %d\n",__FILE__, __LINE__,fcb->dirEntry[fcb->loc].gg, fcb->dirEntry[fcb->loc].size * B_CHUNK_SIZE);
+        printf("FILE \"%s\" @ %d | TOO BIG| size is: %d > %d\n",__FILE__, __LINE__,
+        fcb->dirEntry[fcb->loc].gg, fcb->dirEntry[fcb->loc].size * B_CHUNK_SIZE);
     }
 
     if (fcb->buf == (char *)-1) {
@@ -255,7 +256,8 @@ int b_write (b_io_fd fd, char * buffer, int count)
     
 
     fcb->dirEntry[fcb->loc].gg += added;
-    // printf("%d |File: size: %d added: %d | to add: %d\n",fd, fcb->dirEntry[fcb->loc].gg, added,count);
+    // printf("%d |File: size: %d added: %d | to add: %d\n",
+    // fd, fcb->dirEntry[fcb->loc].gg, added,count);
     // printf("File: size: %d | location : %d\n", fcb->dirEntry->size, fcb->dirEntry->location);
 
     LBAwrite(fcb->dirEntry, fcb->dirEntry->size, fcb->dirEntry->location);
