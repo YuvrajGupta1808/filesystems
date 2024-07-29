@@ -235,11 +235,16 @@ int fs_delete(char* filename){
     
     DirEntry* parentDir = ppi->parent;
     int fileIndex = ppi->posInParent;
-       
-    parentDir[fileIndex].modificationTime = time(NULL); //current time
-    for(int i = parentDir[fileIndex].location; i < parentDir[fileIndex].location+parentDir[fileIndex].size; i++){
+      
+         
+    int startBlock = parentDir[fileIndex].location;
+    int endBlock = startBlock + parentDir[fileIndex].size;
+    
+    
+    for(int i = startBlock; i < endBlock; i++){
         clearBit(i);
-    }
+    } 
+    
     writeBits();
     
     parentDir[fileIndex].size = 0;
