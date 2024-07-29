@@ -235,8 +235,7 @@ int fs_delete(char* filename){
     
     DirEntry* parentDir = ppi->parent;
     int fileIndex = ppi->posInParent;
-    
-    
+       
     parentDir[fileIndex].modificationTime = time(NULL); //current time
     for(int i = parentDir[fileIndex].location; i < parentDir[fileIndex].location+parentDir[fileIndex].size; i++){
         clearBit(i);
@@ -312,8 +311,11 @@ int fs_rmdir(const char *pathname){
     
     freeIfNotNeeded(childDE);
     
+    int startBlock = parentDir[dirIndex].location;
+    int endBlock = startBlock + parentDir[dirIndex].size;
+    
     // clear the directory entry
-    for(int i = parentDir[dirIndex].location; i < parentDir[dirIndex].location+parentDir[dirIndex].size; i++){
+    for(int i = startBlock; i < endBlock; i++){
         clearBit(i);
     }
     writeBits();
